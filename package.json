@@ -1,0 +1,29 @@
+{
+  "name": "express-easy-zip",
+  "version": "1.0.0",
+  "description": "Easily zip files and content for express",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "express",
+    "zip",
+    "middleware"
+  ],
+  "author": "Tan Li Hau",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^2.0.0-rc.3",
+    "bluebird": "^3.3.5",
+    "express": "^4.13.4",
+    "fs-readdir-recursive": "^1.0.0",
+    "var-clean": "^1.0.0",
+    "zip-stream": "^1.0.0"
+  },
+  "devDependencies": {
+    "jasmine": "^2.4.1",
+    "superagent": "^1.8.3",
+    "unzip": "^0.1.11"
+  }
+}
