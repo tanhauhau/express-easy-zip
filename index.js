@@ -19,6 +19,12 @@ function Ignored(obj){
 }
 Ignored.prototype.constructor = Ignored;
 
+function ZIPResult(err, ignored){
+    this.err = err;
+    this.ignored = ignored;
+}
+ZIPResult.prototype.constructor = ZIPResult;
+
 function ZIP(req, res, next){
     res.zip = function(opt) {
         var _this = this;
@@ -34,100 +40,139 @@ function ZIP(req, res, next){
             zip.pipe(_this); // res is a writable stream
 
 
-            function addFilePath(filepath, opt, cb){
-                try{
+            function addFilePath(filepath, opt){
+                return new Promise(function(resolve, reject){
                     //check if file exists or not
-                    var stat = fs.statSync(filepath);
-                    //TODO read directory as well
-                    if(stat.isFile()){
-                        //if it is a file
-                        zip.entry(fs.createReadStream(filepath), opt, cb);
+                    fs.stat(filepath, function(err, stat){
+                        if(err){ //if not exists
+                            return reject(new ZIPError());
+                        }
+                        try{
+                            if(stat.isFile()){
+                                //if it is a file
+                                zip.entry(fs.createReadStream(filepath), opt, function(err, data){
+                                    if(err) reject(err);
+                                    else    resolve(data);
+                                });
+                            }else{
+                                //if it is a directory
+                                var files = readDir(filepath);
+                                each(files, function iteratee(file) {
+                                    return new Promise(function(fileResolve, fileReject){
+                                        //extend
+                                        var childOpt = {};
+                                        childOpt.name = opt.name;
+                                        childOpt.comment = opt.comment;
+                                        childOpt.date = opt.date;
+                                        childOpt.mode = opt.mode;
+                                        childOpt.type = opt.type;
+                                        //update name
+                                        childOpt.name = (childOpt.name.slice(-1) === "/") ? childOpt.name : childOpt.name + "/";
+                                        childOpt.name += file;
+                                        //add to zip
+                                        zip.entry(fs.createReadStream(path.join(filepath, file)), childOpt, function(err, data){
+                                            if(err) fileReject(err);
+                                            else    fileResolve(data);
+                                        });
+                                    });
+                                }).then(resolve, reject);
+                            }
+                        }catch(e){
+                            reject(e);
+                        }
+                    });
+                });
+            }
+            function addFileContent(data, opt){
+                return new Promise(function(resolve, reject){
+                    data = clean.cleanOnlyString(data);
+                    if(data !== undefined){
+                        zip.entry(data, opt, function(err, data){
+                            if(err) reject(err);
+                            else    resolve(data);
+                        });
                     }else{
-                        //if it is a directory
-                        var files = readDir(filepath);
-                        each(files, function iteratee(file, ecb) {
-                            //extend
-                            var childOpt = {};
-                            childOpt.name = opt.name;
-                            childOpt.comment = opt.comment;
-                            childOpt.date = opt.date;
-                            childOpt.mode = opt.mode;
-                            childOpt.type = opt.type;
-                            //update name
-                            childOpt.name = (childOpt.name.slice(-1) === "/") ? childOpt.name : childOpt.name + "/";
-                            childOpt.name += file;
-                            //add to zip
-                            zip.entry(fs.createReadStream(path.join(filepath, file)), childOpt, ecb);
-                        }, cb);
+                        reject(new ZIPError());
                     }
-                }catch(e){
-                    //if not exists
-                    throw new ZIPError();
-                }
-            }
-            function addFileContent(data, opt, cb){
-                data = clean.cleanOnlyString(data);
-                if(data !== undefined){
-                    zip.entry(data, opt, cb);
-                }else{
-                    throw new ZIPError();
-                }
-            }
-            function addFile(file, cb) {
-                var fileOpt = {};
-                fileOpt.name = clean.cleanOnlyString(file.name) || "noname";
-                fileOpt.comment = clean.cleanOnlyString(file.comment) || "";
-                fileOpt.date = file.date;
-                fileOpt.mode = file.mode;
-                fileOpt.type = file.type;
 
-                try{
-                    if (file.path !== undefined){
-                        addFilePath(file.path, fileOpt, cb);
-                    }else{
-                        addFileContent(file.content, fileOpt, cb);
-                    }
-                }catch(e){
-                    if(e instanceof ZIPError){
-                        e = new Ignored(file);
-                    }
-                    cb(e);
-                }
+                });
             }
-            each(opt.files, addFile, function(err, ignored) {
+            function addFile(file) {
+                return new Promise(function(resolve, reject){
+                    var fileOpt = {};
+                    fileOpt.name = clean.cleanOnlyString(file.name) || "noname";
+                    fileOpt.comment = clean.cleanOnlyString(file.comment) || "";
+                    fileOpt.date = file.date;
+                    fileOpt.mode = file.mode;
+                    fileOpt.type = file.type;
+
+                    var promise;
+                    if (file.path !== undefined){
+                        promise = addFilePath(file.path, fileOpt);
+                    }else{
+                        promise = addFileContent(file.content, fileOpt);
+                    }
+                    promise.then(function(data){
+                        resolve(data);
+                    }, function(e){
+                        if(e instanceof ZIPError){
+                            e = new Ignored(file);
+                        }
+                        reject(e);
+                    });
+                });
+            }
+            each(opt.files, addFile)
+            .then(function(data){
                 zip.finalize();
                 _this.end();
+                var err = data.err;
                 if (err instanceof Array && err.length > 0) return reject(err);
-                resolve({ size: zip.getBytesWritten(), ignored: ignored });
+                resolve({ size: zip.getBytesWritten(), ignored: data.ignored });
+            }, function(err) {
+                reject(err);
             });
         });
     };
     next();
 };
 
-function each(arr, iter, cb){
-    var index = 0, len = arr.length;
+function each(arr, iter){
     var result = [];
     var e = [];
-    function ccb(err, data){
-        if(err){
-            if(err instanceof Ignored){
-                result.push(err.file);
-            }else if(err instanceof Array){
-                for(var i=0; i<err.length; i++){
-                    e.push(err[i]);
+    function goodPromise(promise){
+        return new Promise(function(resolve){
+            promise.then(function(data){
+                if(data instanceof ZIPResult){
+                    for(var i=0; i<data.err.length; i++){
+                        e.push(data.err[i]);
+                    }
+                    for(var i=0; i<data.ignored.length; i++){
+                        result.push(data.ignored[i]);
+                    }
                 }
-            }else{
-                e.push(err);
-            }
-        }
-        if(++index < len){
-            iter(arr[index], ccb);
-        }else{
-            cb(e, result);
-        }
+                resolve();
+            }, function (err){
+                if(err instanceof Ignored){
+                    result.push(err.file);
+                }else{
+                    e.push(err);
+                }
+                resolve();
+            });
+        });
     }
-    iter(arr[index], ccb);
+    var ready = Promise.resolve(null);
+
+
+    for(var i=0; i<arr.length; i++){
+        (function(file){
+            ready = ready.then(function(){
+                return goodPromise(iter(file));
+            });
+        })(arr[i]);
+    }
+    return ready.then(function(){ return Promise.resolve(new ZIPResult(e, result)); });
 }
 
 exports = module.exports = function(){ return ZIP };

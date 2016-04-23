@@ -6,11 +6,15 @@ var   unzip = require('unzip'),
     Promise = require('es6-promise').Promise,
   fsCompare = require('fs-compare'),
      mkdirp = require('mkdirp'),
+     rimraf = require('rimraf'),
      server = require('./server.js'),
         zip = require('../index.js');
 
 describe("Works perfectly", function(){
     jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+    afterEach(function(){
+        rimraf.sync(path.resolve(__dirname, './download'));
+    })
     it('should response valid headers', function(done){
         http.get('http://127.0.0.1:8888/test/1', function(res){
             expect(res.headers['content-type']).toMatch(/^application\/zip/);
