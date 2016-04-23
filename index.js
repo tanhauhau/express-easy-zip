@@ -1,11 +1,23 @@
-var   async = require('async'),
-    express = require('express'),
+var express = require('express'),
          fs = require('fs'),
        path = require('path'),
      packer = require('zip-stream'),
       clean = require('var-clean').clean,
     readDir = require('fs-readdir-recursive')
-    Promise = require("bluebird");
+    Promise = require('es6-promise').Promise;
+
+function ZIPError() {
+    this.name = 'ZIPError';
+    this.message = 'File or Content not found';
+    this.stack = (new Error()).stack;
+}
+ZIPError.prototype = Object.create(Error.prototype);
+ZIPError.prototype.constructor = ZIPError;
+
+function Ignored(obj){
+    this.file = obj;
+}
+Ignored.prototype.constructor = Ignored;
 
 function ZIP(req, res, next){
     res.zip = function(opt) {
@@ -33,7 +45,7 @@ function ZIP(req, res, next){
                     }else{
                         //if it is a directory
                         var files = readDir(filepath);
-                        async.eachSeries(files, function iteratee(file, cb) {
+                        each(files, function iteratee(file, ecb) {
                             //extend
                             var childOpt = {};
                             childOpt.name = opt.name;
@@ -45,15 +57,12 @@ function ZIP(req, res, next){
                             childOpt.name = (childOpt.name.slice(-1) === "/") ? childOpt.name : childOpt.name + "/";
                             childOpt.name += file;
                             //add to zip
-                            zip.entry(fs.createReadStream(path.join(filepath, file)), childOpt, cb);
-                        }, function(err){
-                            cb(err);
-                        });
+                            zip.entry(fs.createReadStream(path.join(filepath, file)), childOpt, ecb);
+                        }, cb);
                     }
                 }catch(e){
                     //if not exists
-                    console.warn('Ignore file: ' + filepath);
-                    cb();
+                    throw new ZIPError();
                 }
             }
             function addFileContent(data, opt, cb){
@@ -61,8 +70,7 @@ function ZIP(req, res, next){
                 if(data !== undefined){
                     zip.entry(data, opt, cb);
                 }else{
-                    console.warn('Ignore content: ' + data);
-                    cb();
+                    throw new ZIPError();
                 }
             }
             function addFile(file, cb) {
@@ -73,21 +81,53 @@ function ZIP(req, res, next){
                 fileOpt.mode = file.mode;
                 fileOpt.type = file.type;
 
-                if (file.path !== undefined){
-                    addFilePath(file.path, fileOpt, cb);
-                }else{
-                    addFileContent(file.content, fileOpt, cb);
+                try{
+                    if (file.path !== undefined){
+                        addFilePath(file.path, fileOpt, cb);
+                    }else{
+                        addFileContent(file.content, fileOpt, cb);
+                    }
+                }catch(e){
+                    if(e instanceof ZIPError){
+                        e = new Ignored(file);
+                    }
+                    cb(e);
                 }
             }
-
-            async.eachSeries(opt.files, addFile, function(err, ignored) {
-                if (err) return reject(err);
+            each(opt.files, addFile, function(err, ignored) {
                 zip.finalize();
-                resolve(zip.getBytesWritten());
+                _this.end();
+                if (err instanceof Array && err.length > 0) return reject(err);
+                resolve({ size: zip.getBytesWritten(), ignored: ignored });
             });
-
         });
     };
     next();
 };
+
+function each(arr, iter, cb){
+    var index = 0, len = arr.length;
+    var result = [];
+    var e = [];
+    function ccb(err, data){
+        if(err){
+            if(err instanceof Ignored){
+                result.push(err.file);
+            }else if(err instanceof Array){
+                for(var i=0; i<err.length; i++){
+                    e.push(err[i]);
+                }
+            }else{
+                e.push(err);
+            }
+        }
+        if(++index < len){
+            iter(arr[index], ccb);
+        }else{
+            cb(e, result);
+        }
+    }
+    iter(arr[index], ccb);
+}
+
 exports = module.exports = function(){ return ZIP };
