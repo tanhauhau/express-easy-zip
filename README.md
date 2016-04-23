@@ -1,5 +1,11 @@
 # express-easy-zip
 
+[![Build Status](https://travis-ci.org/tanhauhau/express-easy-zip.svg?branch=master)](https://travis-ci.org/tanhauhau/express-easy-zip)
+[![npm version](https://badge.fury.io/js/express-easy-zip.svg)](https://badge.fury.io/js/express-easy-zip)
+[![Dependency status](https://david-dm.org/tanhauhau/express-easy-zip.svg)](https://david-dm.org)
+[![Downloads](https://img.shields.io/npm/dt/express-easy-zip.svg)](https://www.npmjs.com/package/express-easy-zip)
+[![Donate](https://img.shields.io/gratipay/user/tanhauhau.svg)](https://gratipay.com/~tanhauhau/)
+
 ## Installation
 
 ```bash
@@ -18,19 +24,23 @@ app.use(zip());
 app.use('/zip', function(req, res){
     res.zip({
         files: [
-            { content: 'this is a string',      //options can refer to http://archiverjs.com/zip-stream/ZipStream.html#entry
+            { content: 'this is a string',      //options can refer to [http://archiverjs.com/zip-stream/ZipStream.html#entry](http://archiverjs.com/zip-stream/ZipStream.html#entry)
                  name: 'file-name',
                  mode: 0755,
               comment: 'comment-for-the-file',
                  date: new Date(),
                  type: 'file' },
-            { path: path.join(__dirname, './file'), name: 'any/path/to/file' },
-            { path: path.join(__dirname, './folder/'), name: 'folder-name' }
+            { path: path.join(__dirname, './file'), name: 'any/path/to/file' }, //can be a file
+            { path: path.join(__dirname, './folder/'), name: 'folder-name' }    //or a folder
         ],
         filename: 'zip-file-name.zip'
     });
 });
 ```
+
+## Documentation
+
+See [Documentation](https://github.com/tanhauhau/express-easy-zip/blob/master/DOC.md).
 
 ## License
 
