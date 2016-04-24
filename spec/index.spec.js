@@ -102,6 +102,7 @@ describe("Works perfectly", function(){
                     { content: 'this is a string', name: 'file-name'},
                     { path: path.join(__dirname, './test/test1.txt'), name: 'exists.txt' },
                     { path: path.join(__dirname, './test/missing.txt'), name: 'unknown.txt' },
+                    { name: 'unknown2.txt' },
                 ],
                 filename: 'test1.zip'
             });
@@ -121,8 +122,9 @@ describe("Works perfectly", function(){
                     expect(val.ignored).toEqual(jasmine.any(Array));
 
                     //to be correct
-                    expect(val.ignored.length).toEqual(1);
+                    expect(val.ignored.length).toEqual(2);
                     expect(val.ignored[0]).toEqual({ path: path.join(__dirname, './test/missing.txt'), name: 'unknown.txt' });
+                    expect(val.ignored[1]).toEqual({ name: 'unknown2.txt' });
                     done();
                     server.close();
                 })

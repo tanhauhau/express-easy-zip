@@ -15,6 +15,7 @@
   "license": "MIT",
   "dependencies": {
     "es6-promise": "^3.1.2",
+    "file-exists-promise": "^1.0.2",
     "fs-readdir-recursive": "^1.0.0",
     "var-clean": "^1.0.0",
     "zip-stream": "^1.0.0"

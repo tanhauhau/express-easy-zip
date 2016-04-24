@@ -1,9 +1,10 @@
 var express = require('express'),
          fs = require('fs'),
+     exists = require('file-exists-promise'),
        path = require('path'),
      packer = require('zip-stream'),
       clean = require('var-clean').clean,
-    readDir = require('fs-readdir-recursive')
+    readDir = require('fs-readdir-recursive'),
     Promise = require('es6-promise').Promise;
 
 function ZIPError() {}
@@ -45,10 +46,8 @@ function _ZIP(opt) {
         function addFilePath(filepath, opt){
             return new Promise(function(resolve, reject){
                 //check if file exists or not
-                fs.stat(filepath, function(err, stat){
-                    if(err){ //if not exists
-                        return reject(new ZIPError());
-                    }
+                exists(filepath)
+                .then(function(stat){
                     try{
                         if(stat.isFile()){
                             //if it is a file
@@ -71,6 +70,8 @@ function _ZIP(opt) {
                     }catch(e){
                         reject(e);
                     }
+                }, function(){ //if not exists
+                    return reject(new ZIPError());
                 });
             });
         }
@@ -112,9 +113,14 @@ function _ZIP(opt) {
         .then(function(data){
             zip.finalize();
             _this.end();
-            if (data.err instanceof Array && data.err.length > 0) return reject(data.err);
-            resolve({ size: zip.getBytesWritten(), ignored: data.ignored });
+            if (data.err instanceof Array && data.err.length > 0) {
+                reject(data.err);
+            } else {
+                resolve({ size: zip.getBytesWritten(), ignored: data.ignored });
+            }
         }, function(err) {
+            _this.sendStatus(500);
+            _this.end();
             reject(err);
         });
     });
