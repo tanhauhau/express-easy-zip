@@ -6,6 +6,9 @@
 [![Downloads](https://img.shields.io/npm/dt/express-easy-zip.svg)](https://www.npmjs.com/package/express-easy-zip)
 [![Donate](https://img.shields.io/gratipay/user/tanhauhau.svg)](https://gratipay.com/~tanhauhau/)
 
+> Zip files and folders easily for your express server. 
+> Successor of [express-zip](https://www.npmjs.com/package/express-zip)
+
 ## Installation
 
 ```bash
