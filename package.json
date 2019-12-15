@@ -1,6 +1,6 @@
 {
   "name": "express-easy-zip",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Easily zip files and content for express",
   "main": "index.js",
   "scripts": {
