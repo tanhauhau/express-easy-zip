@@ -27,7 +27,7 @@ app.use(zip());
 app.use('/zip', function(req, res){
     res.zip({
         files: [
-            { content: 'this is a string',      //options can refer to [http://archiverjs.com/zip-stream/ZipStream.html#entry](http://archiverjs.com/zip-stream/ZipStream.html#entry)
+            { content: 'this is a string or a buffer',      //options can refer to [http://archiverjs.com/zip-stream/ZipStream.html#entry](http://archiverjs.com/zip-stream/ZipStream.html#entry)
                  name: 'file-name',
                  mode: 0755,
               comment: 'comment-for-the-file',

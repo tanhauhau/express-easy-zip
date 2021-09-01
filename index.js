@@ -80,7 +80,7 @@ function _ZIP(opt) {
 
     function addFileContent(data, opt) {
       return new Promise(function(resolve, reject) {
-        data = clean.cleanOnlyString(data);
+        data = typeof data === 'string' || Buffer.isBuffer(data) ? data : undefined;
         if (data !== undefined) {
           zipEntry(zip, data, opt)
             .then(resolve, reject);
